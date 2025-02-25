@@ -1,0 +1,68 @@
+@startuml
+
+
+
+actor  "Advertising buyer" as adBuyer
+actor "Advertising seller" as adSeller
+actor "Administrator" as admin
+
+participant "UI" as UI
+participant "Collaborator API" as API
+participant "Grabber service" as grabber
+participant "BERT service" as BERT
+participant "Elasticsearch" as ES
+participant "Admin panel" as adminPanel
+participant "Scheduler" as scheduler
+participant "Logger" as logger
+
+
+
+adSeller -> UI: Register platform
+UI -> API: Register platform operation
+API -> BERT: Vectorize keywords
+BERT --> API: Vector
+API -> ES: Store parameters + vector of keywords(dense_vector)
+ES --> API: Successfully saved
+API --> UI: response
+UI --> adSeller: Show result
+
+
+
+adBuyer -> UI: Fill parameters and search offers
+UI -> API: Search offers operation
+API -> grabber: Grab HTML meta
+grabber --> API: HTML meta
+API -> BERT: Vectorize buyer keywords
+BERT --> API: Vector
+API -> ES: Find by parameters(country, language, ...) and similarity, limit top 10
+ES --> API: Results
+API --> UI: Response with results
+UI --> adBuyer: Show results
+adBuyer -> UI: Selects platform and buy ad
+UI -> API: Buy operation
+API -> ES: Get selected document data
+ES --> API: Document data
+API -> BERT: Recalculate vector by keywords
+BERT --> API: Recalculated vector
+API -> ES: Update values(orderCount, vector, keywords)
+
+
+
+admin -> UI: Change settings operation(change vector size as example)
+alt Run now
+    UI -> API: Recalculate vectors operation
+    API -> ES: Update vectors
+    ES --> API: Success
+    API --> UI: Response
+    UI --> admin: Show result
+else Schedule
+    UI -> scheduler: Schedule
+    scheduler -> API: Run vector recalculation
+    API -> ES: Update vectors
+    ES --> API: Success
+    API --> logger: Log
+end
+
+
+
+@enduml
